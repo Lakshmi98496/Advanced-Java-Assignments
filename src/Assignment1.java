@@ -2,94 +2,76 @@ import java.util.*;
 
 public class Assignment1 {
 
-    // HashMap to store username -> userId
-    static HashMap<String, Integer> userDatabase = new HashMap<>();
+    // productId -> stock count
+    static HashMap<String, Integer> inventory = new HashMap<>();
 
-    // HashMap to store username attempt frequency
-    static HashMap<String, Integer> attemptFrequency = new HashMap<>();
+    // waiting list (productId -> list of users)
+    static HashMap<String, LinkedList<Integer>> waitingList = new HashMap<>();
 
-    // Function to check username availability
-    public static boolean checkAvailability(String username) {
+    // Check stock availability
+    public static int checkStock(String productId) {
 
-        // increase attempt count
-        attemptFrequency.put(username,
-                attemptFrequency.getOrDefault(username, 0) + 1);
-
-        // check if username already exists
-        if (userDatabase.containsKey(username)) {
-            return false; // already taken
+        if (inventory.containsKey(productId)) {
+            return inventory.get(productId);
         }
 
-        return true; // available
+        return 0;
     }
 
-    // Function to suggest alternative usernames
-    public static List<String> suggestAlternatives(String username) {
+    // Purchase item (thread safe)
+    public synchronized static void purchaseItem(String productId, int userId) {
 
-        List<String> suggestions = new ArrayList<>();
+        int stock = inventory.getOrDefault(productId, 0);
 
-        // append numbers
-        for (int i = 1; i <= 3; i++) {
-            String newName = username + i;
+        if (stock > 0) {
 
-            if (!userDatabase.containsKey(newName)) {
-                suggestions.add(newName);
-            }
+            stock--;
+            inventory.put(productId, stock);
+
+            System.out.println("User " + userId +
+                    " purchase SUCCESS. Remaining stock: " + stock);
+
+        } else {
+
+            waitingList.putIfAbsent(productId, new LinkedList<>());
+
+            waitingList.get(productId).add(userId);
+
+            int position = waitingList.get(productId).size();
+
+            System.out.println("User " + userId +
+                    " added to waiting list. Position #" + position);
         }
-
-        // replace underscore with dot
-        String dotName = username.replace("_", ".");
-
-        if (!userDatabase.containsKey(dotName)) {
-            suggestions.add(dotName);
-        }
-
-        return suggestions;
     }
 
-    // Function to get most attempted username
-    public static String getMostAttempted() {
+    // Display waiting list
+    public static void showWaitingList(String productId) {
 
-        String most = "";
-        int max = 0;
-
-        for (String user : attemptFrequency.keySet()) {
-
-            int count = attemptFrequency.get(user);
-
-            if (count > max) {
-                max = count;
-                most = user;
-            }
+        if (!waitingList.containsKey(productId)) {
+            System.out.println("No waiting list.");
+            return;
         }
 
-        return most + " (" + max + " attempts)";
+        System.out.println("Waiting list for " + productId + ": "
+                + waitingList.get(productId));
     }
 
     public static void main(String[] args) {
 
-        // Pre-existing usernames
-        userDatabase.put("john_doe", 1001);
-        userDatabase.put("admin", 1002);
-        userDatabase.put("alex_23", 1003);
+        String product = "IPHONE15_256GB";
 
-        // Sample checks
-        System.out.println("Check username john_doe: " + checkAvailability("john_doe"));
-        System.out.println("Check username jane_smith: " + checkAvailability("jane_smith"));
+        // initial stock
+        inventory.put(product, 100);
 
-        // Suggestions
-        System.out.println("Suggestions for john_doe: " + suggestAlternatives("john_doe"));
+        System.out.println("Stock Available: " + checkStock(product));
 
-        // Simulating many attempts
-        for (int i = 0; i < 5; i++) {
-            checkAvailability("admin");
+        // simulate purchases
+        for (int i = 1; i <= 105; i++) {
+
+            purchaseItem(product, i);
         }
 
-        for (int i = 0; i < 3; i++) {
-            checkAvailability("john_doe");
-        }
-
-        // Most attempted username
-        System.out.println("Most attempted username: " + getMostAttempted());
+        // show waiting list
+        showWaitingList(product);
     }
 }
